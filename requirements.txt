@@ -1,0 +1,12 @@
+streamlit>=1.35
+streamlit-folium>=0.20
+folium>=0.16
+xarray>=2024.1
+zarr>=3.0
+s3fs>=2024.2
+dask>=2024.1
+numpy
+pandas
+pyarrow
+scipy
+pytest
