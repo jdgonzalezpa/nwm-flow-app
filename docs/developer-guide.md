@@ -9,6 +9,8 @@ nwm-flow-app/
 │   ├── __init__.py      # public API re-exports
 │   ├── store.py         # dataset location, chunk constants, open_chrtout()
 │   ├── reaches.py       # reach table cache, feature_id lookup, nearest-reach search
+│   ├── gauges.py        # USGS gauge list and observed daily flow (USGS Water Data API)
+│   ├── compare.py       # fit statistics (r, NSE, KGE, bias) and monthly means
 │   └── download.py      # cost estimate, chunk-aligned fetching, resampling, CSV export
 ├── tests/test_core.py   # live smoke tests against AWS
 ├── docs/                # documentation
@@ -41,6 +43,21 @@ ReachTable (local parquet cache)        open_chrtout()  ──►  lazy xarray D
 `gage_id`) are each a single chunk. They are read once (~25 s) and saved as Parquet in
 `~/.cache/nwm-flow/`, which makes later starts instant. The DataFrame row order matches the store's
 `feature_id` axis, so a row position *is* the integer index used with `isel`.
+
+**USGS gauges.** `gauges.py` requests the `combined-metadata` collection of the USGS Water Data
+OGC API with `parameter_code=00060` (discharge) and `statistic_id=00003` (daily mean). One request
+returns all ~25,900 series in a few seconds; paging links are followed if the API ever splits the list.
+Series are merged per site (earliest begin, latest end), restricted to the CONUS box and cached as
+Parquet for `MAX_AGE_DAYS` (30). A failed download falls back to a stale cache. In `app.py` the gauges
+are one `folium.GeoJson` layer drawn on a canvas (`prefer_canvas=True`); a gauge click is recognised by
+the site number in the clicked object's tooltip, and gauges link to reaches through the NWM `gage_id`.
+
+**Observed vs simulated.** `fetch_observed` reads the `daily` collection (one request per gauge and
+period; a full 44-year record is ~16,000 rows, well under the 50,000 page limit). When a site has more
+than one daily discharge series, the longest is kept. Values arrive in ft³/s and are converted to m³/s.
+The app caches observations for a day (`st.cache_data`) and compares NWM daily means (UTC days) with
+USGS daily means (local days); monthly values come from `monthly_mean`, which drops incomplete months
+so a gap in the record does not bias a month.
 
 **Nearest-reach search.** Lat/lon are converted to 3-D unit vectors and indexed with
 `scipy.spatial.cKDTree`. Euclidean (chord) distance between unit vectors is monotonic in
@@ -88,6 +105,7 @@ The tests hit the live bucket: they build the reach cache if needed and download
 - feature_id lookup, including the error for unknown IDs
 - fetched values are finite, non-negative and have the right length
 - daily/monthly resampling and CSV header content
+- the USGS gauge list and the observed-flow download, and the fit statistics
 
 You can also script the UI with Streamlit's `streamlit.testing.v1.AppTest`. The folium map component
 does not render there, but forms, buttons and the download flow do.
@@ -98,7 +116,7 @@ does not render there, but forms, buttons and the download flow do.
 |---|---|
 | Another variable (e.g. `velocity`) | Parameterise the variable name in `fetch_streamflow`. The chunking is the same for all CHRTOUT variables. Add a selector in `app.py`. |
 | NWM v2.1 or another domain | Change `CHRTOUT_URL` in `store.py`, check the chunk sizes in the store's `.zmetadata`, and use a different `CACHE_PATH` in `reaches.py`. |
-| Search by USGS gage ID | Filter `ReachTable.df` on `gage_id` and add a tab in `app.py`. |
+| Search by USGS gage ID | Look the site up in `load_gauges()` and use `get_gauge_reaches()` in `app.py`. |
 | Other export formats | Add a function next to `to_csv_bytes` (e.g. `df.to_parquet`, or `xarray` → NetCDF) and another `st.download_button`. |
 | Local units (cfs) | Multiply by 35.3147 before export, and label the CSV header accordingly. |
 

@@ -47,8 +47,23 @@ Each reach is located by a single reference point. Raise **Minimum stream order*
 large rivers) or zoom in and click closer to the river line.
 
 **How do I find the reach for a USGS gage?**
-Gauged reaches show their gage ID in the candidate table. Search near the gage location, or in Python:
+Click the gauge on the map and press **Add NWM reach … (linked to this gauge)**. Gauged reaches also show
+their gage ID in the candidate table. In Python:
 `reaches.df[reaches.df.gage_id == "01646500"]`.
+
+**The map shows no USGS gauges.**
+The list comes from `api.waterdata.usgs.gov`. If that service could not be reached on first start, the
+app runs without it; restart the app once the connection works. Delete
+`~/.cache/nwm-flow/usgs_gauges.parquet` to force a fresh download.
+
+**Some gauges have no linked NWM reach.**
+The NWM links only about 8,100 gauges to a reach. For the others, use the nearest-reaches table that
+appears after the click and check the stream order and distance.
+
+**The tool's values don't match what I downloaded from USGS.**
+Check the units first: the tool reports m³/s and USGS reports ft³/s; multiply the tool's values by
+35.3147. After that, remaining differences are mostly NWM model error. Use section **4. Compare with
+USGS observations** to see the two series side by side and how well they agree.
 
 **What are the units and time zone?**
 Cubic metres per second (m³/s), UTC. Multiply by 35.3147 for cubic feet per second.

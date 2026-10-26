@@ -64,6 +64,46 @@ row = reaches.df[reaches.df["gage_id"] == "01646500"]
 idx = row.index.to_numpy()      # DataFrame index == store index
 ```
 
+### `nwm_flow.gauges`
+
+#### `load_gauges(refresh=False) -> DataFrame`
+USGS streamflow gauges (sites with a daily-mean discharge record) in the NWM domain, from the
+[USGS Water Data API](https://api.waterdata.usgs.gov/). One row per site, columns `site_no`, `name`,
+`latitude`, `longitude`, `drainage_area_sqmi`, `begin`, `end` (daily record period; may be empty) and
+`active` (record ends within the last 60 days). Cached at `~/.cache/nwm-flow/usgs_gauges.parquet` and
+refreshed after 30 days, or when `refresh=True`.
+
+#### `nearest_gauge(gauges, lat, lon) -> Series`
+The gauge closest to a point.
+
+```python
+from nwm_flow import load_gauges, nearest_gauge
+g = nearest_gauge(load_gauges(), 38.9497, -77.1275)   # site_no '01646500'
+row = reaches.df[reaches.df["gage_id"] == g["site_no"]]  # its NWM reach, if linked
+```
+
+#### `fetch_observed(site_no, start, end) -> Series`
+USGS observed daily mean streamflow at a gauge, converted to **m³/s**, indexed by date (the gauge's
+local day). Days without a value are absent; an empty Series means no data in the period. Source:
+the `daily` collection of the USGS Water Data API (parameter 00060, statistic 00003).
+
+### `nwm_flow.compare`
+
+#### `fit_stats(sim, obs) -> dict`
+Goodness of fit over the dates present in both Series: `n`, `mean_obs`, `mean_sim`, `r`, `NSE`, `KGE`
+(Kling-Gupta 2009) and `pbias` (% volume bias, positive = simulation too high).
+
+#### `monthly_mean(daily, min_fraction=0.9) -> Series`
+Monthly means of a daily Series, dropping months with fewer than `min_fraction` of their days.
+
+```python
+from nwm_flow import fetch_observed, fit_stats, monthly_mean
+idx = reaches.index_for_feature_ids([3488041])                 # Scioto River at Piketon, OH
+sim = resample(fetch_streamflow(ds, idx, "2013-01-01", "2022-12-31"), "D")[3488041]
+obs = fetch_observed("03237020", "2013-01-01", "2022-12-31")
+fit_stats(monthly_mean(sim), monthly_mean(obs))   # r 0.95, NSE 0.90, KGE 0.92, pbias +5.6
+```
+
 ### `nwm_flow.download`
 
 #### `estimate(ds, indices, start, end) -> Estimate`

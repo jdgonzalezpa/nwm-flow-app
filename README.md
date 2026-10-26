@@ -10,10 +10,12 @@ It reads the public Zarr store on AWS directly. **No AWS account is needed.**
 ## Features
 
 - 🗺️ Pick rivers by **clicking a map**, typing **lat/lon**, or entering NWM **feature_ids**
+- 📡 Shows **USGS streamflow gauges** on the map (official USGS Water Data API); click one to add its NWM reach
 - 🔎 Lists the nearest reaches with distance, **stream order** and **USGS gage** ID, so you pick the right river
 - 📏 Shows a **download-size estimate** before fetching
 - ⏱️ **Hourly, daily-mean or monthly-mean** output, with a progress bar during download
 - 📈 Plot preview and summary statistics
+- ⚖️ **Compare with USGS observations** for gauged reaches: overlay chart, r, NSE, KGE and volume bias
 - 💾 **CSV export** (optionally with metadata header lines)
 - 🐍 The same functions are available as a Python API for scripting
 
